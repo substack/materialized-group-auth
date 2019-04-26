@@ -7,9 +7,10 @@
   },
   "dependencies": {
     "collect-stream": "^1.2.1",
+    "duplexify": "^4.0.0",
+    "mutexify": "^1.2.0",
     "once": "^1.4.0",
     "pump": "^3.0.0",
-    "read-only-stream": "^2.0.0",
     "through2": "^3.0.1"
   }
 }

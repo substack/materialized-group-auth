@@ -1,5 +1,6 @@
 var collect = require('collect-stream')
-var readonly = require('read-only-stream')
+var duplexify = require('duplexify')
+var mutexify = require('mutexify')
 var defaults = require('levelup-defaults')
 var through = require('through2')
 var pump = require('pump')
@@ -14,30 +15,29 @@ module.exports = Auth
 function Auth (db) {
   if (!(this instanceof Auth)) return new Auth(db)
   this.db = defaults(db, { valueEncoding: 'json' })
+  this._lock = mutexify()
 }
 
-Auth.prototype.allowed = function (op, cb) {
-  // todo: fail if SEPARATOR in name
-  cb(null, true)
-}
-
-Auth.prototype.batchAllowed = function (batch, cb) {
+Auth.prototype._batchAllowed = function (batch, cb) {
   cb(null, true)
 }
 
 Auth.prototype.batch = function (docs, cb) {
-  cb = once(cb)
   var self = this
-  var batch = []
-  self.batchAllowed(docs, function (err, allowed) {
-    if (err) cb(err)
-    else if (!allowed) {
-      var err = new Error('operation not allowed')
-      err.type = 'NOT_ALLOWED'
-      return cb(err)
-    } else insert()
+  cb = once(cb)
+  self._lock(function (release) {
+    self._batchAllowed(docs, function (err, allowed) {
+      if (err) {
+        release(cb, err)
+      } else if (!allowed) {
+        var err = new Error('operation not allowed')
+        err.type = 'NOT_ALLOWED'
+        release(cb, err)
+      } else insert(release)
+    })
   })
-  function insert () {
+  function insert (release) {
+    var batch = []
     var pending = 1
     docs.forEach(function (doc) {
       pending++
@@ -54,10 +54,11 @@ Auth.prototype.batch = function (docs, cb) {
             var value = { mod: Boolean(doc.mod) }
             if (doc.by) value.addedBy = doc.by
             if (doc.mod && doc.by) value.modBy = doc.by
+            // duplicate data to avoid setting a mutex around responses
             batch.push({ type: 'put', key: gmkey, value: value })
-            batch.push({ type: 'put', key: mgkey, value: '' })
+            batch.push({ type: 'put', key: mgkey, value: value })
           }
-          if (--pending === 0) done()
+          if (--pending === 0) done(release, batch)
         })
       } else if (doc.type === 'del') {
         batch.push({
@@ -68,75 +69,92 @@ Auth.prototype.batch = function (docs, cb) {
           type: 'del',
           key: MEMBER_GROUP + doc.id + '!' + doc.group
         })
-        if (--pending === 0) done()
-      } else cb(null)
+        if (--pending === 0) done(release, batch)
+      } else {
+        if (--pending === 0) done(release, batch)
+      }
     })
-    if (--pending === 0) done()
+    if (--pending === 0) done(release, batch)
   }
-  function done () {
-    self.db.batch(batch, cb)
+  function done (release, batch) {
+    self.db.batch(batch, function (err) {
+      release(cb, err)
+    })
   }
 }
 
 Auth.prototype.listGroups = function (cb) {
-  var r = this.db.createReadStream({
-    gt: GROUP,
-    lt: GROUP + '\uffff'
-  })
-  var out = through.obj(function (row, enc, next) {
-    next(null, {
-      id: row.key.slice(GROUP.length)
+  var self = this
+  var d = duplexify()
+  self._lock(function (release) {
+    var r = self.db.createReadStream({
+      gt: GROUP,
+      lt: GROUP + '\uffff'
     })
-  })
-  pump(r, out)
-  if (typeof cb === 'function') {
-    collect(out, function (err, groups) {
-      cb(err, groups)
+    var out = through.obj(function (row, enc, next) {
+      next(null, {
+        id: row.key.slice(GROUP.length)
+      })
     })
-  }
-  return readonly(out)
+    pump(r, out)
+    if (typeof cb === 'function') {
+      collect(out, function (err, groups) {
+        cb(err, groups)
+      })
+    }
+    d.setReadable(out)
+    release()
+  })
+  return d
 }
 
 Auth.prototype.listMembers = function (group, cb) {
-  var r = this.db.createReadStream({
-    gt: GROUP_MEMBER + group + '!',
-    lt: GROUP_MEMBER + group + '!\uffff'
-  })
-  var out = through.obj(function (row, enc, next) {
-    next(null, Object.assign({
-      id: row.key.slice(GROUP_MEMBER.length + group.length + 1)
-    }, row.value))
-  })
-  pump(r, out)
-  if (typeof cb === 'function') {
-    collect(out, function (err, groups) {
-      cb(err, groups)
+  var self = this
+  var d = duplexify()
+  self._lock(function (release) {
+    var r = self.db.createReadStream({
+      gt: GROUP_MEMBER + group + '!',
+      lt: GROUP_MEMBER + group + '!\uffff'
     })
-  }
-  return readonly(out)
+    var out = through.obj(function (row, enc, next) {
+      next(null, Object.assign({
+        id: row.key.slice(GROUP_MEMBER.length + group.length + 1)
+      }, row.value))
+    })
+    pump(r, out)
+    if (typeof cb === 'function') {
+      collect(out, function (err, groups) {
+        cb(err, groups)
+      })
+    }
+    d.setReadable(out)
+    release()
+  })
+  return d
 }
 
 Auth.prototype.listMembership = function (id, cb) {
   var self = this
-  var r = this.db.createReadStream({
-    gt: MEMBER_GROUP + id + '!',
-    lt: MEMBER_GROUP + id + '!\uffff'
-  })
-  var out = through.obj(function (row, enc, next) {
-    var parts = row.key.split('!')
-    var id = parts[1]
-    var group = parts[2]
-    var gmkey = GROUP_MEMBER + group + '!' + id
-    self.db.get(gmkey, function (err, doc) {
-      if (err) return next(err)
-      else next(null, Object.assign({ id: group }, doc))
+  var d = duplexify()
+  self._lock(function (release) {
+    var r = self.db.createReadStream({
+      gt: MEMBER_GROUP + id + '!',
+      lt: MEMBER_GROUP + id + '!\uffff'
     })
-  })
-  pump(r, out)
-  if (typeof cb === 'function') {
-    collect(out, function (err, groups) {
-      cb(err, groups)
+    var out = through.obj(function (row, enc, next) {
+      var parts = row.key.split('!')
+      var id = parts[1]
+      var group = parts[2]
+      next(null, Object.assign({ id: group }, row.value))
     })
-  }
-  return readonly(out)
+    pump(r, out)
+    if (typeof cb === 'function') {
+      collect(out, function (err, groups) {
+        cb(err, groups)
+      })
+    }
+    d.setReadable(out)
+    release()
+  })
+  return d
 }
