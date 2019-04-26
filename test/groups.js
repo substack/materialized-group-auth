@@ -11,14 +11,14 @@ test('groups', function (t) {
       by: null,
       group: '@',
       id: 'user0',
-      mod: true
+      role: 'admin'
     },
     {
       type: 'add',
       by: 'user0',
       group: 'cool',
       id: 'user1',
-      mod: true
+      role: 'mod'
     },
     {
       type: 'add',
@@ -36,25 +36,21 @@ test('groups', function (t) {
     auth.listMembers('cool', function (err, members) {
       t.ifError(err)
       t.deepEqual(members.sort(byId), [
-        { id: 'user1', addedBy: 'user0', modBy: 'user0', mod: true },
-        { id: 'user2', addedBy: 'user1', mod: false }
+        { id: 'user1', role: 'mod' },
+        { id: 'user2' }
       ])
     })
     auth.listMembership('user0', function (err, groups) {
       t.ifError(err)
-      t.deepEqual(groups.sort(byId), [ { id: '@', mod: true } ])
+      t.deepEqual(groups.sort(byId), [ { id: '@', role: 'admin' } ])
     })
     auth.listMembership('user1', function (err, groups) {
       t.ifError(err)
-      t.deepEqual(groups.sort(byId), [
-        { id: 'cool', mod: true, addedBy: 'user0', modBy: 'user0' }
-      ])
+      t.deepEqual(groups.sort(byId), [ { id: 'cool', role: 'mod' } ])
     })
     auth.listMembership('user2', function (err, groups) {
       t.ifError(err)
-      t.deepEqual(groups.sort(byId), [
-        { id: 'cool', mod: false, addedBy: 'user1' }
-      ])
+      t.deepEqual(groups.sort(byId), [ { id: 'cool' } ])
     })
   })
 })

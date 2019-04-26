@@ -51,9 +51,8 @@ Auth.prototype.batch = function (docs, cb) {
         var mgkey = MEMBER_GROUP + doc.id + '!' + doc.group
         self.db.get(gmkey, function (err, m) {
           if (!m || Boolean(m.mod) !== Boolean(doc.mod)) {
-            var value = { mod: Boolean(doc.mod) }
-            if (doc.by) value.addedBy = doc.by
-            if (doc.mod && doc.by) value.modBy = doc.by
+            var value = {}
+            if (doc.role) value.role = doc.role
             // duplicate data to avoid setting a mutex around responses
             batch.push({ type: 'put', key: gmkey, value: value })
             batch.push({ type: 'put', key: mgkey, value: value })
