@@ -23,19 +23,58 @@ function Auth (db) {
 }
 
 Auth.prototype._batchAllowed = function (batch, cb) {
-  /*
-  var pending = 1
+  var self = this
+  cb = once(cb)
   var ok = true
   batch.forEach(function (doc) {
-    pending++
     if (doc.type === 'add') {
-      self.get
-    } else if (--pending === 0) done()
+      self._getRole(doc.group, doc.id, function (err, role) {
+        if (err) return cb(err)
+        if (role === 'mod' && (doc.role === 'mod' || doc.role === 'admin')) {
+          cb(null, false)
+        } else if (role === 'admin' && (doc.role === 'admin')) {
+        }
+      })
+      self._canMod(doc.group, doc.id, function (err, can) {
+        if (err) return cb(err)
+      })
+    }
   })
-  if (--pending === 0) done()
-  function done () { cb(null, ok) }
-  */
   cb(null, true)
+}
+
+Auth.prototype._getRole = function (group, id, cb) {
+  cb = once(cb)
+  var role = null
+  var pending = 1
+  if (group !== '@') {
+    pending++
+    this.db.get(GROUP_MEMBER + '@!' + id, function (err, res) {
+      if (err && !err.notFound) return cb(err)
+      if (res) role = 'admin'
+      if (--pending === 0) cb(null, role)
+    })
+  }
+  this.db.get(GROUP_MEMBER + group + '!' + id, function (err, res) {
+    if (err && !err.notFound) return cb(err)
+    else if (res && res.role === 'admin') role = 'admin'
+    else if (res && res.role === 'mod' && role !== 'admin') role = 'mod'
+    if (--pending === 0) cb(null, role)
+  })
+}
+
+Auth.prototype._canMod = function (group, id, cb) {
+  this._getRole(group, id, function (err, role) {
+    if (err) cb(err)
+    else cb(null, role === 'admin' || role === 'mod')
+  })
+}
+
+Auth.prototype._canAdmin = function (group, id, cb) {
+  this._getRole(group, id, function (err, role) {
+    if (err) cb(err)
+    else cb(null, role === 'admin')
+  })
 }
 
 Auth.prototype.batch = function (docs, cb) {
@@ -80,6 +119,8 @@ Auth.prototype.batch = function (docs, cb) {
             batch.push({ type: 'put', key: mgkey, value: value })
             batch.push({ type: 'put', key: ghkey, value: 0 })
             batch.push({ type: 'put', key: mhkey, value: 0 })
+            batch.push({ type: 'put', key: aghkey, value: 0 })
+            batch.push({ type: 'put', key: amhkey, value: 0 })
           }
           if (--pending === 0) done(release, batch)
         })
