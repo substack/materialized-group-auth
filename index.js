@@ -6,9 +6,8 @@ var pump = require('pump')
 var once = require('once')
 
 var GROUP = 'g!'
-var MEMBER = 'm!'
-var USER = 'u!'
-var MOD = '@!'
+var GROUP_MEMBER = 'gm!'
+var MEMBER_GROUP = 'mg!'
 
 module.exports = Auth
 
@@ -36,8 +35,7 @@ Auth.prototype.batch = function (docs, cb) {
       var err = new Error('operation not allowed')
       err.type = 'NOT_ALLOWED'
       return cb(err)
-    }
-    else insert()
+    } else insert()
   })
   function insert () {
     var pending = 1
@@ -49,19 +47,26 @@ Auth.prototype.batch = function (docs, cb) {
           key: GROUP + doc.group,
           value: ''
         })
-        var mkey = MEMBER + doc.group + '!' + doc.id
-        self.db.get(mkey, function (err, m) {
+        var gmkey = GROUP_MEMBER + doc.group + '!' + doc.id
+        var mgkey = MEMBER_GROUP + doc.id + '!' + doc.group
+        self.db.get(gmkey, function (err, m) {
           if (!m || Boolean(m.mod) !== Boolean(doc.mod)) {
-            var value = { addedBy: doc.by, mod: Boolean(doc.mod) }
-            if (doc.mod) value.modBy = doc.by
-            batch.push({ type: 'put', key: mkey, value: value })
+            var value = { mod: Boolean(doc.mod) }
+            if (doc.by) value.addedBy = doc.by
+            if (doc.mod && doc.by) value.modBy = doc.by
+            batch.push({ type: 'put', key: gmkey, value: value })
+            batch.push({ type: 'put', key: mgkey, value: '' })
           }
           if (--pending === 0) done()
         })
       } else if (doc.type === 'del') {
         batch.push({
           type: 'del',
-          key: MEMBER + doc.group + '!' + doc.id
+          key: GROUP_MEMBER + doc.group + '!' + doc.id
+        })
+        batch.push({
+          type: 'del',
+          key: MEMBER_GROUP + doc.id + '!' + doc.group
         })
         if (--pending === 0) done()
       } else cb(null)
@@ -93,15 +98,39 @@ Auth.prototype.listGroups = function (cb) {
 }
 
 Auth.prototype.listMembers = function (group, cb) {
-  console.log('LIST', MEMBER + group)
   var r = this.db.createReadStream({
-    gt: MEMBER + group + '!',
-    lt: MEMBER + group + '!\uffff'
+    gt: GROUP_MEMBER + group + '!',
+    lt: GROUP_MEMBER + group + '!\uffff'
   })
   var out = through.obj(function (row, enc, next) {
     next(null, Object.assign({
-      id: row.key.slice(MEMBER.length + group.length + 1)
+      id: row.key.slice(GROUP_MEMBER.length + group.length + 1)
     }, row.value))
+  })
+  pump(r, out)
+  if (typeof cb === 'function') {
+    collect(out, function (err, groups) {
+      cb(err, groups)
+    })
+  }
+  return readonly(out)
+}
+
+Auth.prototype.listMembership = function (id, cb) {
+  var self = this
+  var r = this.db.createReadStream({
+    gt: MEMBER_GROUP + id + '!',
+    lt: MEMBER_GROUP + id + '!\uffff'
+  })
+  var out = through.obj(function (row, enc, next) {
+    var parts = row.key.split('!')
+    var id = parts[1]
+    var group = parts[2]
+    var gmkey = GROUP_MEMBER + group + '!' + id
+    self.db.get(gmkey, function (err, doc) {
+      if (err) return next(err)
+      else next(null, Object.assign({ id: group }, doc))
+    })
   })
   pump(r, out)
   if (typeof cb === 'function') {
