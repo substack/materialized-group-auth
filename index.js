@@ -6,6 +6,7 @@ var through = require('through2')
 var pump = require('pump')
 var once = require('once')
 
+var SEP = '!'
 var GROUP = 'g!'
 var GROUP_MEMBER = 'gm!'
 var MEMBER_GROUP = 'mg!'
@@ -28,6 +29,9 @@ Auth.prototype._batchAllowed = function (batch, cb) {
   var pending = 1
   batch.forEach(function (doc, i) {
     if (doc.by === null) return
+    if (doc.by.indexOf(SEP) >= 0) return cb(null, false)
+    if (doc.id.indexOf(SEP) >= 0) return cb(null, false)
+    if (doc.group.indexOf(SEP) >= 0) return cb(null, false)
     if (doc.type === 'add') {
       pending += 2
       self._getRole({ batch, i }, doc.group, doc.id, function (err, role) {
