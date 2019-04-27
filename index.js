@@ -25,53 +25,98 @@ function Auth (db) {
 Auth.prototype._batchAllowed = function (batch, cb) {
   var self = this
   cb = once(cb)
-  var ok = true
-  batch.forEach(function (doc) {
+  var pending = 1
+  batch.forEach(function (doc, i) {
+    if (doc.by === null) return
     if (doc.type === 'add') {
-      self._getRole(doc.group, doc.id, function (err, role) {
+      pending += 2
+      self._getRole({ batch, i }, doc.group, doc.id, function (err, role) {
+        // check if id already has a role in the group
         if (err) return cb(err)
         if (role === 'mod' && (doc.role === 'mod' || doc.role === 'admin')) {
           cb(null, false)
-        } else if (role === 'admin' && (doc.role === 'admin')) {
-        }
+        } else if (role === 'admin' && doc.role === 'admin') {
+          cb(null, false)
+        } else if (--pending === 0) ok()
       })
-      self._canMod(doc.group, doc.id, function (err, can) {
+      self._canMod({ batch, i }, doc.group, doc.by, function (err, can) {
+        // check if initiator of op is a mod
         if (err) return cb(err)
+        else if (!can) return cb(null, false)
+        else if (--pending === 0) ok()
+      })
+    } else if (doc.type === 'remove') {
+      pending++
+      self._getRole({ batch, i }, doc.group, doc.by, function (err, byRole) {
+        // check if initiator of op is a mod
+        if (err) return cb(err)
+        if (byRole !== 'admin' && byRole !== 'mod') return cb(null, false)
+        self._getRole({ batch, i }, doc.group, doc.id, function (err, role) {
+          if (err) return cb(err)
+          if (byRole === 'mod' && (role === 'mod' || role === 'admin')) {
+            return cb(null, false)
+          }
+        })
+        if (--pending === 0) ok()
       })
     }
   })
-  cb(null, true)
+  if (--pending === 0) ok()
+  function ok () { cb(null, true) }
 }
 
-Auth.prototype._getRole = function (group, id, cb) {
+Auth.prototype._getRole = function (b, group, id, cb) {
   cb = once(cb)
   var role = null
   var pending = 1
   if (group !== '@') {
     pending++
-    this.db.get(GROUP_MEMBER + '@!' + id, function (err, res) {
-      if (err && !err.notFound) return cb(err)
-      if (res) role = 'admin'
-      if (--pending === 0) cb(null, role)
-    })
+    var found = null
+    for (var i = 0; i < b.i; i++) {
+      var doc = b.batch[i]
+      if (doc.group === '@' && doc.id === id) {
+        if (doc.type === 'add') found = { add: doc }
+        else if (doc.type === 'remove') found = {}
+      }
+    }
+    if (found) {
+      onroot(null, found.add)
+    } else this.db.get(GROUP_MEMBER + '@!' + id, onroot)
   }
-  this.db.get(GROUP_MEMBER + group + '!' + id, function (err, res) {
+  var found = null
+  for (var i = 0; i < b.i; i++) {
+    var doc = b.batch[i]
+    if (doc.group === group && doc.id === id) {
+      if (doc.type === 'add') found = { add: doc }
+      else if (doc.type === 'remove') found = {}
+    }
+  }
+  if (found) {
+    onget(null, found.add)
+  } else this.db.get(GROUP_MEMBER + group + '!' + id, onget)
+
+  function onget (err, res) {
     if (err && !err.notFound) return cb(err)
     else if (res && res.role === 'admin') role = 'admin'
     else if (res && res.role === 'mod' && role !== 'admin') role = 'mod'
     if (--pending === 0) cb(null, role)
-  })
+  }
+  function onroot (err, res) {
+    if (err && !err.notFound) return cb(err)
+    if (res) role = 'admin'
+    if (--pending === 0) cb(null, role)
+  }
 }
 
-Auth.prototype._canMod = function (group, id, cb) {
-  this._getRole(group, id, function (err, role) {
+Auth.prototype._canMod = function (b, group, id, cb) {
+  this._getRole(b, group, id, function (err, role) {
     if (err) cb(err)
     else cb(null, role === 'admin' || role === 'mod')
   })
 }
 
-Auth.prototype._canAdmin = function (group, id, cb) {
-  this._getRole(group, id, function (err, role) {
+Auth.prototype._canAdmin = function (b, group, id, cb) {
+  this._getRole(b, group, id, function (err, role) {
     if (err) cb(err)
     else cb(null, role === 'admin')
   })
@@ -124,7 +169,7 @@ Auth.prototype.batch = function (docs, cb) {
           }
           if (--pending === 0) done(release, batch)
         })
-      } else if (doc.type === 'del') {
+      } else if (doc.type === 'remove') {
         batch.push({
           type: 'del',
           key: GROUP_MEMBER + doc.group + '!' + doc.id
