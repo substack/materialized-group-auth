@@ -2,10 +2,10 @@ var test = require('tape')
 var memdb = require('memdb')
 var mauth = require('../')
 
-test('disallowed', function (t) {
-  t.plan(3)
+test('disallowed single batch 0', function (t) {
+  t.plan(1)
   var auth = mauth(memdb())
-  var pre = [
+  var batch = [
     {
       type: 'add',
       by: null,
@@ -25,9 +25,7 @@ test('disallowed', function (t) {
       by: 'user1',
       group: 'cool',
       id: 'user2'
-    }
-  ]
-  var fail0 = [
+    },
     {
       type: 'remove',
       by: 'user2',
@@ -35,7 +33,35 @@ test('disallowed', function (t) {
       id: 'user1'
     }
   ]
-  var fail1 = [
+  auth.batch(batch, function (err) {
+    t.ok(err, 'expected set 0 to fail')
+  })
+})
+
+test('disallowed single batch 1', function (t) {
+  t.plan(1)
+  var auth = mauth(memdb())
+  var batch = [
+    {
+      type: 'add',
+      by: null,
+      group: '@',
+      id: 'user0',
+      role: 'admin'
+    },
+    {
+      type: 'add',
+      by: 'user0',
+      group: 'cool',
+      id: 'user1',
+      role: 'mod'
+    },
+    {
+      type: 'add',
+      by: 'user1',
+      group: 'cool',
+      id: 'user2'
+    },
     {
       type: 'add',
       by: 'user2',
@@ -43,14 +69,8 @@ test('disallowed', function (t) {
       id: 'user3'
     }
   ]
-  auth.batch(pre, function (err) {
-    t.error(err)
-    auth.batch(fail0, function (err) {
-      t.ok(err, 'expected set 0 to fail')
-    })
-    auth.batch(fail1, function (err) {
-      t.ok(err, 'expected set 1 to fail')
-    })
+  auth.batch(batch, function (err) {
+    t.ok(err, 'expected set 0 to fail')
   })
 })
 
