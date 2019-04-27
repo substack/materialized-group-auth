@@ -1,6 +1,5 @@
 var mauth = require('../')
-//var db = require('level')('/tmp/auth.db')
-var db = require('levelup')(require('leveldown')('/tmp/auth.db'))
+var db = require('level')('/tmp/auth.db')
 var auth = mauth(db)
 
 var minimist = require('minimist')
