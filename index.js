@@ -27,46 +27,52 @@ Auth.prototype._batchAllowed = function (batch, cb) {
   var self = this
   cb = once(cb)
   var pending = 1
+  var invalid = {}
   batch.forEach(function (doc, i) {
     if (doc.by === null) return
-    if (doc.by.indexOf(SEP) >= 0) return cb(null, false)
-    if (doc.id.indexOf(SEP) >= 0) return cb(null, false)
-    if (doc.group.indexOf(SEP) >= 0) return cb(null, false)
+    if (doc.by.indexOf(SEP) >= 0) return (invalid[i] = true)
+    if (doc.id.indexOf(SEP) >= 0) return (invalid[i] = true)
+    if (doc.group.indexOf(SEP) >= 0) return (invalid[i] = true)
     if (doc.type === 'add') {
       pending += 2
       self._getRole({ batch, i }, doc.group, doc.id, function (err, role) {
         // check if id already has a role in the group
         if (err) return cb(err)
         if (role === 'mod' && (doc.role === 'mod' || doc.role === 'admin')) {
-          cb(null, false)
+          invalid[i] = true
+          if (--pending === 0) done()
         } else if (role === 'admin' && doc.role === 'admin') {
-          cb(null, false)
-        } else if (--pending === 0) ok()
+          invalid[i] = true
+        } else if (--pending === 0) done()
       })
       self._canMod({ batch, i }, doc.group, doc.by, function (err, can) {
         // check if initiator of op is a mod
         if (err) return cb(err)
-        else if (!can) return cb(null, false)
-        else if (--pending === 0) ok()
+        if (!can) { invalid[i] = true }
+        if (--pending === 0) done()
       })
     } else if (doc.type === 'remove') {
       pending++
       self._getRole({ batch, i }, doc.group, doc.by, function (err, byRole) {
         // check if initiator of op is a mod
         if (err) return cb(err)
-        if (byRole !== 'admin' && byRole !== 'mod') return cb(null, false)
+        if (byRole !== 'admin' && byRole !== 'mod') {
+          invalid[i] = true
+          if (--pending === 0) done()
+          return
+        }
         self._getRole({ batch, i }, doc.group, doc.id, function (err, role) {
           if (err) return cb(err)
           if (byRole === 'mod' && (role === 'mod' || role === 'admin')) {
-            return cb(null, false)
+            invalid[i] = true
           }
+          if (--pending === 0) done()
         })
-        if (--pending === 0) ok()
       })
     }
   })
-  if (--pending === 0) ok()
-  function ok () { cb(null, true) }
+  if (--pending === 0) done()
+  function done () { cb(null, Object.keys(invalid)) }
 }
 
 Auth.prototype._getRole = function (b, group, id, cb) {
@@ -126,21 +132,27 @@ Auth.prototype._canAdmin = function (b, group, id, cb) {
   })
 }
 
-Auth.prototype.batch = function (docs, cb) {
+Auth.prototype.batch = function (docs, opts, cb) {
+  if (typeof opts === 'function') {
+    cb = opts
+    opts = {}
+  }
   var self = this
   cb = once(cb)
   self._lock(function (release) {
-    self._batchAllowed(docs, function (err, allowed) {
+    self._batchAllowed(docs, function (err, invalid) {
       if (err) {
         release(cb, err)
-      } else if (!allowed) {
+      } else if (opts.skip && invalid.length > 0) {
+        insert(release, docs.invalid.map(function (i) { return docs[i] }))
+      } else if (invalid.length > 0) {
         var err = new Error('operation not allowed')
         err.type = 'NOT_ALLOWED'
         release(cb, err)
-      } else insert(release)
+      } else insert(release, docs)
     })
   })
-  function insert (release) {
+  function insert (release, docs) {
     var batch = []
     var pending = 1
     docs.forEach(function (doc) {
