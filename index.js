@@ -1,7 +1,6 @@
 var collect = require('collect-stream')
 var duplexify = require('duplexify')
 var mutexify = require('mutexify')
-var defaults = require('levelup-defaults')
 var through = require('through2')
 var pump = require('pump')
 var once = require('once')
@@ -15,11 +14,16 @@ var MEMBER_HISTORY = 'mh!'
 var ADMIN_GROUP_HISTORY = 'ag!'
 var ADMIN_MEMBER_HISTORY = 'am!'
 
+var dbOpts = {
+  keyEncoding: 'string',
+  valueEncoding: 'json'
+}
+
 module.exports = Auth
 
 function Auth (db) {
   if (!(this instanceof Auth)) return new Auth(db)
-  this.db = defaults(db, { valueEncoding: 'json' })
+  this.db = db
   this._lock = mutexify()
 }
 
@@ -91,7 +95,7 @@ Auth.prototype._getRole = function (b, group, id, cb) {
     }
     if (found) {
       onroot(null, found.add)
-    } else this.db.get(GROUP_MEMBER + '@!' + id, onroot)
+    } else this.db.get(GROUP_MEMBER + '@!' + id, dbOpts, onroot)
   }
   var found = null
   for (var i = 0; i < b.i; i++) {
@@ -103,7 +107,7 @@ Auth.prototype._getRole = function (b, group, id, cb) {
   }
   if (found) {
     onget(null, found.add)
-  } else this.db.get(GROUP_MEMBER + group + '!' + id, onget)
+  } else this.db.get(GROUP_MEMBER + group + '!' + id, dbOpts, onget)
 
   function onget (err, res) {
     if (err && !err.notFound) return cb(err)
@@ -171,7 +175,7 @@ Auth.prototype.batch = function (docs, opts, cb) {
           + '!' + doc.id + '!' + doc.key
         var amhkey = ADMIN_MEMBER_HISTORY + doc.by + '!' + doc.id
           + '!' + doc.group + '!' + doc.key
-        self.db.get(gmkey, function (err, m) {
+        self.db.get(gmkey, dbOpts, function (err, m) {
           if (!m || Boolean(m.mod) !== Boolean(doc.mod)) {
             var value = {}
             if (doc.role) value.role = doc.role
@@ -202,7 +206,7 @@ Auth.prototype.batch = function (docs, opts, cb) {
     if (--pending === 0) done(release, batch)
   }
   function done (release, batch) {
-    self.db.batch(batch, function (err) {
+    self.db.batch(batch, dbOpts, function (err) {
       release(cb, err)
     })
   }
@@ -212,10 +216,10 @@ Auth.prototype.getGroups = function (cb) {
   var self = this
   var d = duplexify.obj()
   self._lock(function (release) {
-    var r = self.db.createReadStream({
+    var r = self.db.createReadStream(Object.assign({
       gt: GROUP,
       lt: GROUP + '\uffff'
-    })
+    }, dbOpts))
     var out = through.obj(function (row, enc, next) {
       next(null, {
         id: row.key.slice(GROUP.length)
@@ -237,10 +241,10 @@ Auth.prototype.getMembers = function (group, cb) {
   var self = this
   var d = duplexify.obj()
   self._lock(function (release) {
-    var r = self.db.createReadStream({
+    var r = self.db.createReadStream(Object.assign({
       gt: GROUP_MEMBER + group + '!',
       lt: GROUP_MEMBER + group + '!\uffff'
-    })
+    }, dbOpts))
     var out = through.obj(function (row, enc, next) {
       next(null, Object.assign({
         id: row.key.slice(GROUP_MEMBER.length + group.length + 1)
@@ -262,10 +266,10 @@ Auth.prototype.getMembership = function (id, cb) {
   var self = this
   var d = duplexify.obj()
   self._lock(function (release) {
-    var r = self.db.createReadStream({
+    var r = self.db.createReadStream(Object.assign({
       gt: MEMBER_GROUP + id + '!',
       lt: MEMBER_GROUP + id + '!\uffff'
-    })
+    }, dbOpts))
     var out = through.obj(function (row, enc, next) {
       var parts = row.key.split('!')
       var id = parts[1]
@@ -288,10 +292,10 @@ Auth.prototype.getMemberHistory = function (id, cb) {
   var self = this
   var d = duplexify.obj()
   self._lock(function (release) {
-    var r = self.db.createReadStream({
+    var r = self.db.createReadStream(Object.assign({
       gt: MEMBER_HISTORY + id + '!',
       lt: MEMBER_HISTORY + id + '!\uffff'
-    })
+    }, dbOpts))
     var out = through.obj(function (row, enc, next) {
       var parts = row.key.split('!')
       var group = parts[2]
@@ -327,7 +331,7 @@ Auth.prototype.getGroupHistory = function (group, cb) {
     lt = GROUP_HISTORY + group + '!\uffff'
   }
   self._lock(function (release) {
-    var r = self.db.createReadStream({ gt, lt })
+    var r = self.db.createReadStream(Object.assign({ gt, lt }, dbOpts))
     var out = through.obj(function (row, enc, next) {
       var parts = row.key.split('!')
       var id = parts[2]
