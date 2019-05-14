@@ -86,12 +86,16 @@ would affect the final state if there are invalid records.
 
 Each `doc` in the `docs` batch should be one of these types:
 
+### add
+
 * type: 'add'
 * key - string to refer to a document from the log
 * group - group string name
 * id - user id string to add
 * by - user added by this user id string
 * role - when specified, add the user as this role
+
+### remove
 
 * type: 'remove'
 * key - string to refer to a document from the log
