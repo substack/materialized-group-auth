@@ -145,7 +145,7 @@ Auth.prototype.batch = function (docs, opts, cb) {
       if (err) {
         release(cb, err)
       } else if (opts.skip && invalid.length > 0) {
-        insert(release, docs.invalid.map(function (i) { return docs[i] }))
+        insert(release, invalid.map(function (i) { return docs[i] }))
       } else if (invalid.length > 0) {
         var err = new Error('operation not allowed')
         err.type = 'NOT_ALLOWED'
