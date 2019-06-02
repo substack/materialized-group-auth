@@ -111,6 +111,15 @@ If `by` is `null`, the operation will always succeed.
 The group `@` is special: members of this group are allowed to administer any
 other group. Inside the `@` group, mod/admin policies apply for adminsitration.
 
+## auth.isMember({ group, id }, cb)
+
+Determine whether a user `id` is a member of `group` as `cb(err, isMember)` for
+a boolean `isMember`.
+
+## auth.getRole({ group, id }, cb)
+
+Get the role as a string in `cb(err, role)` for an `id` in a `group`.
+
 ## var rstream = auth.getGroups(cb)
 
 Return a list of all the groups in the database as `cb(err, groups)` or a

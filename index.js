@@ -95,6 +95,7 @@ Auth.prototype._getRole = function (b, group, id, cb) {
     if (err && !err.notFound) return cb(err)
     else if (res && res.role === 'admin') role = 'admin'
     else if (res && res.role === 'mod' && role !== 'admin') role = 'mod'
+    else if (res && res.role && role === null) role = res.role
     if (--pending === 0) cb(null, role)
   }
   function onroot (err, res) {
@@ -102,6 +103,17 @@ Auth.prototype._getRole = function (b, group, id, cb) {
     if (res) role = 'admin'
     if (--pending === 0) cb(null, role)
   }
+}
+
+var emptyB = { batch: [], i: 0 }
+Auth.prototype.getRole = function (r, cb) {
+  if (r.group.indexOf(SEP) >= 0) {
+    return process.nextTick(cb, new Error('invalid group name'))
+  }
+  if (r.id.indexOf(SEP) >= 0) {
+    return process.nextTick(cb, new Error('invalid id'))
+  }
+  this._getRole(emptyB, r.group, r.id, cb)
 }
 
 Auth.prototype._canMod = function (b, group, id, cb) {
@@ -243,6 +255,21 @@ Auth.prototype.getMembers = function (group, cb) {
   })
   return d
 }
+
+Auth.prototype.isMember = function (r, cb) {
+  if (r.group.indexOf(SEP) >= 0) {
+    return process.nextTick(cb, new Error('invalid group name'))
+  }
+  if (r.id.indexOf(SEP) >= 0) {
+    return process.nextTick(cb, new Error('invalid id'))
+  }
+  this.db.get(GROUP_MEMBER + r.group + '!' + r.id, function (err, x) {
+    if (err && err.notFound) cb(null, false)
+    else if (err) cb(err)
+    else cb(null, true)
+  })
+}
+
 
 Auth.prototype.getMembership = function (id, cb) {
   var self = this

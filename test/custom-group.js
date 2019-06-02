@@ -3,7 +3,7 @@ var memdb = require('memdb')
 var mauth = require('../')
 
 test('custom group', function (t) {
-  t.plan(27)
+  t.plan(31)
   var auth = mauth(memdb())
   var docs = [
     {
@@ -36,6 +36,14 @@ test('custom group', function (t) {
     auth.getGroups(function (err, groups) {
       t.ifError(err)
       t.deepEqual(sortBy('id',groups), [ { id: '@' }, { id: 'cool' } ])
+    })
+    auth.isMember({ id: 'bot0', group: 'cool' }, function (err, x) {
+      t.ifError(err)
+      t.ok(x, 'bot0 is a member of group cool')
+    })
+    auth.getRole({ id: 'bot0', group: 'cool' }, function (err, role) {
+      t.ifError(err)
+      t.equal(role, 'bot', 'bot0 has the role bot in group cool')
     })
     auth.getMembers('cool', function (err, members) {
       t.ifError(err)

@@ -3,7 +3,7 @@ var memdb = require('memdb')
 var mauth = require('../')
 
 test('groups', function (t) {
-  t.plan(27)
+  t.plan(49)
   var auth = mauth(memdb())
   var docs = [
     {
@@ -54,6 +54,50 @@ test('groups', function (t) {
     auth.getMembership('user2', function (err, groups) {
       t.ifError(err)
       t.deepEqual(groups.sort(byId), [ { id: 'cool' } ])
+    })
+    auth.isMember({ id: 'user0', group: '@' }, function (err, x) {
+      t.ifError(err)
+      t.ok(x, 'user0 is a member of group @')
+    })
+    auth.isMember({ id: 'user0', group: 'cool' }, function (err, x) {
+      t.ifError(err)
+      t.notOk(x, 'user0 is not a member of group cool')
+    })
+    auth.isMember({ id: 'user1', group: 'cool' }, function (err, x) {
+      t.ifError(err)
+      t.ok(x, 'user1 is a member of group cool')
+    })
+    auth.isMember({ id: 'user1', group: '@' }, function (err, x) {
+      t.ifError(err)
+      t.notOk(x, 'user1 is not a member of group @')
+    })
+    auth.isMember({ id: 'user2', group: 'cool' }, function (err, x) {
+      t.ifError(err)
+      t.ok(x, 'user2 is a member of group cool')
+    })
+    auth.isMember({ id: 'user2', group: '@' }, function (err, x) {
+      t.ifError(err)
+      t.notOk(x, 'user2 is not a member of group @')
+    })
+    auth.isMember({ id: 'user3', group: 'cool' }, function (err, x) {
+      t.ifError(err)
+      t.notOk(x, 'user3 is not a member of group cool')
+    })
+    auth.getRole({ id: 'user0', group: '@' }, function (err, x) {
+      t.ifError(err)
+      t.equal(x, 'admin')
+    })
+    auth.getRole({ id: 'user1', group: 'cool' }, function (err, x) {
+      t.ifError(err)
+      t.equal(x, 'mod')
+    })
+    auth.getRole({ id: 'user2', group: 'cool' }, function (err, x) {
+      t.ifError(err)
+      t.equal(x, null)
+    })
+    auth.getRole({ id: 'user3', group: 'cool' }, function (err, x) {
+      t.ifError(err)
+      t.equal(x, null)
     })
     auth.getGroupHistory('cool', function (err, docs) {
       t.ifError(err)
