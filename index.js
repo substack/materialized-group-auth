@@ -34,6 +34,9 @@ Auth.prototype._batchAllowed = function (batch, cb) {
   var invalid = {}
   batch.forEach(function (doc, i) {
     if (doc.by === null) return
+    if (typeof doc.by !== 'string') return (invalid[i] = true)
+    if (typeof doc.id !== 'string') return (invalid[i] = true)
+    if (typeof doc.group !== 'string') return (invalid[i] = true)
     if (doc.by.indexOf(SEP) >= 0) return (invalid[i] = true)
     if (doc.id.indexOf(SEP) >= 0) return (invalid[i] = true)
     if (doc.group.indexOf(SEP) >= 0) return (invalid[i] = true)
