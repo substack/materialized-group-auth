@@ -3,7 +3,7 @@ var memdb = require('memdb')
 var mauth = require('../')
 
 test('disallowed', function (t) {
-  t.plan(3)
+  t.plan(5)
   var auth = mauth(memdb())
   var pre = [
     {
@@ -43,6 +43,24 @@ test('disallowed', function (t) {
       id: 'user3'
     }
   ]
+  var fail2 = [
+    {
+      type: 'add',
+      by: 'user2',
+      group: 'cool',
+      id: 'user3',
+      role: 'custom'
+    }
+  ]
+  var fail3 = [
+    {
+      type: 'add',
+      by: 'user1',
+      group: 'cool',
+      id: 'user0',
+      role: 'ban'
+    }
+  ]
   auth.batch(pre, function (err) {
     t.error(err)
     auth.batch(fail0, function (err) {
@@ -50,6 +68,12 @@ test('disallowed', function (t) {
     })
     auth.batch(fail1, function (err) {
       t.ok(err, 'expected set 1 to fail')
+    })
+    auth.batch(fail2, function (err) {
+      t.ok(err, 'expected set 2 to fail')
+    })
+    auth.batch(fail3, function (err) {
+      t.ok(err, 'expected set 3 to fail')
     })
   })
 })
