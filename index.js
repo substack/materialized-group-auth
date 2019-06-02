@@ -37,25 +37,7 @@ Auth.prototype._batchAllowed = function (batch, cb) {
     if (doc.by.indexOf(SEP) >= 0) return (invalid[i] = true)
     if (doc.id.indexOf(SEP) >= 0) return (invalid[i] = true)
     if (doc.group.indexOf(SEP) >= 0) return (invalid[i] = true)
-    if (doc.type === 'add') {
-      pending += 2
-      self._getRole({ batch, i }, doc.group, doc.id, function (err, role) {
-        // check if id already has a role in the group
-        if (err) return cb(err)
-        if (role === 'mod' && (doc.role === 'mod' || doc.role === 'admin')) {
-          invalid[i] = true
-          if (--pending === 0) done()
-        } else if (role === 'admin' && doc.role === 'admin') {
-          invalid[i] = true
-        } else if (--pending === 0) done()
-      })
-      self._canMod({ batch, i }, doc.group, doc.by, function (err, can) {
-        // check if initiator of op is a mod
-        if (err) return cb(err)
-        if (!can) { invalid[i] = true }
-        if (--pending === 0) done()
-      })
-    } else if (doc.type === 'remove') {
+    if (doc.type === 'add' || doc.type === 'remove') {
       pending++
       self._getRole({ batch, i }, doc.group, doc.by, function (err, byRole) {
         // check if initiator of op is a mod

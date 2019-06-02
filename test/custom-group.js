@@ -2,7 +2,7 @@ var test = require('tape')
 var memdb = require('memdb')
 var mauth = require('../')
 
-test('groups', function (t) {
+test('custom group', function (t) {
   t.plan(27)
   var auth = mauth(memdb())
   var docs = [
