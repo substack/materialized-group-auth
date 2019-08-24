@@ -137,7 +137,7 @@ test('groups', function (t) {
   })
 })
 
-test.only('regression: opts.skip does not affect operation correctness', function (t) {
+test('regression: opts.skip does not affect operation correctness', function (t) {
   t.plan(5)
 
   var auth = mauth(memdb())
