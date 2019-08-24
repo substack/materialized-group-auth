@@ -137,4 +137,43 @@ test('groups', function (t) {
   })
 })
 
+test.only('regression: opts.skip does not affect operation correctness', function (t) {
+  t.plan(5)
+
+  var auth = mauth(memdb())
+  var docs = [
+    {
+      type: 'add',
+      id: 'b9be45ef45a827cd4b1b2a414a46cfa5783ca38044d7360c7d2913db6c3ea5b9',
+      group: '@',
+      role: 'admin'
+    },
+    {
+      type: 'add',
+      by: 'c0f73ca06138ecddcee96efae5a9a799cc1d133d9c00c47bfc87f85cb4e8defd',
+      id: 'e8db822eb0f5ba06cacb0e28e6158a95363492fb32cca79105f2549b8a19a508',
+      group: '@',
+      role: 'ban/key'
+    },
+    {
+      type: 'add',
+      by: 'b9be45ef45a827cd4b1b2a414a46cfa5783ca38044d7360c7d2913db6c3ea5b9',
+      id: 'foobar',
+      group: '@',
+      role: 'ban/key'
+    }
+  ]
+  auth.batch(docs, {skip:true}, function (err) {
+    t.error(err)
+    auth.getRole({group:'@', id:'e8db822eb0f5ba06cacb0e28e6158a95363492fb32cca79105f2549b8a19a508'}, function (err, role) {
+      t.error(err)
+      t.notOk(role)
+      auth.getRole({group:'@', id:'foobar'}, function (err, role) {
+        t.error(err)
+        t.same(role, 'ban/key')
+      })
+    })
+  })
+})
+
 function byId (a, b) { return a.id < b.id ? -1 : +1 }
