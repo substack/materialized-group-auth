@@ -48,21 +48,21 @@ test('custom group', function (t) {
     auth.getMembers('cool', function (err, members) {
       t.ifError(err)
       t.deepEqual(sortBy('id',members), [
-        { id: 'bot0', role: 'bot' },
-        { id: 'user1', role: 'mod' }
+        { id: 'bot0', role: 'bot', key: 1002 },
+        { id: 'user1', role: 'mod', key: 1001 }
       ])
     })
     auth.getMembership('user0', function (err, groups) {
       t.ifError(err)
-      t.deepEqual(sortBy('id',groups), [ { id: '@', role: 'admin' } ])
+      t.deepEqual(sortBy('id',groups), [ { id: '@', role: 'admin', key: 1000 } ])
     })
     auth.getMembership('user1', function (err, groups) {
       t.ifError(err)
-      t.deepEqual(sortBy('id',groups), [ { id: 'cool', role: 'mod' } ])
+      t.deepEqual(sortBy('id',groups), [ { id: 'cool', role: 'mod', key: 1001 } ])
     })
     auth.getMembership('bot0', function (err, groups) {
       t.ifError(err)
-      t.deepEqual(sortBy('id',groups), [ { id: 'cool', role: 'bot' } ])
+      t.deepEqual(sortBy('id',groups), [ { id: 'cool', role: 'bot', key: 1002 } ])
     })
     auth.getGroupHistory('cool', function (err, docs) {
       t.ifError(err)

@@ -58,10 +58,10 @@ $ node auth.js groups
 { id: '@' }
 { id: 'cool' }
 $ node auth.js members cool
-{ id: 'user1', role: 'mod' }
-{ id: 'user2' }
+{ id: 'user1', role: 'mod', key: 1001 }
+{ id: 'user2', key: 1002 }
 $ node auth.js members @
-{ id: 'user0', role: 'admin' }
+{ id: 'user0', role: 'admin', key: 1000 }
 ```
 
 # api
@@ -134,6 +134,7 @@ readable object stream `rstream` where each row is of the form:
 
 * `row.id` - id string of the group user
 * `row.role` - user role if set
+* `row.key` - key to refer to an original document
 
 ## var rstream = auth.getMembership(id, cb)
 
@@ -143,6 +144,7 @@ form:
 
 * `row.id` - string name of the group
 * `row.role` - role of the user in the group, if any
+* `row.key` - key to refer to an original document
 
 ## var rstream = auth.getMemberHistory(id, cb)
 

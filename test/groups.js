@@ -39,21 +39,21 @@ test('groups', function (t) {
     auth.getMembers('cool', function (err, members) {
       t.ifError(err)
       t.deepEqual(members.sort(byId), [
-        { id: 'user1', role: 'mod' },
-        { id: 'user2' }
+        { id: 'user1', role: 'mod', key: 1001 },
+        { id: 'user2', key: 1002 }
       ])
     })
     auth.getMembership('user0', function (err, groups) {
       t.ifError(err)
-      t.deepEqual(groups.sort(byId), [ { id: '@', role: 'admin' } ])
+      t.deepEqual(groups.sort(byId), [ { id: '@', role: 'admin', key: 1000 } ])
     })
     auth.getMembership('user1', function (err, groups) {
       t.ifError(err)
-      t.deepEqual(groups.sort(byId), [ { id: 'cool', role: 'mod' } ])
+      t.deepEqual(groups.sort(byId), [ { id: 'cool', role: 'mod', key: 1001 } ])
     })
     auth.getMembership('user2', function (err, groups) {
       t.ifError(err)
-      t.deepEqual(groups.sort(byId), [ { id: 'cool' } ])
+      t.deepEqual(groups.sort(byId), [ { id: 'cool', key: 1002 } ])
     })
     auth.isMember({ id: 'user0', group: '@' }, function (err, x) {
       t.ifError(err)

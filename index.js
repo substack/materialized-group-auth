@@ -177,6 +177,7 @@ Auth.prototype.batch = function (docs, opts, cb) {
           if (!m || Boolean(m.mod) !== Boolean(doc.mod)) {
             var value = {}
             if (doc.role) value.role = doc.role
+            if (doc.key !== undefined) value.key = doc.key
             // duplicate data to avoid setting a mutex around responses
             batch.push({ type: 'put', key: gmkey, value: value })
             batch.push({ type: 'put', key: mgkey, value: value })
