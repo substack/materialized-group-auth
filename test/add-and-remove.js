@@ -108,6 +108,44 @@ test('single-batch add and remove', function (t) {
   }
 })
 
+test('one batch add and remove', function (t) {
+  t.plan(3)
+  var auth = mauth(memdb())
+  var batch = [
+    {
+      type: 'add',
+      by: null,
+      group: '@',
+      id: 'user0',
+      role: 'admin'
+    },
+    {
+      type: 'add',
+      by: 'user0',
+      group: '@',
+      id: 'user1',
+      role: 'ban'
+    },
+    {
+      type: 'remove',
+      by: 'user0',
+      group: '@',
+      id: 'user1',
+      role: 'ban'
+    },
+  ]
+  auth.batch(batch, function (err) {
+    t.error(err)
+    auth.getMembers('@', function (err, members) {
+      t.error(err)
+      t.deepEqual(members.sort(byId), [
+        { id: 'user0', role: 'admin' },
+      ])
+    })
+  })
+})
+
+
 function byId (a, b) {
   return a.id < b.id ? -1 : +1
 }
