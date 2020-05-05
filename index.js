@@ -146,12 +146,12 @@ Auth.prototype.batch = function (docs, opts, cb) {
         release(cb, err)
       } else if (opts.skip && invalid.length > 0) {
         invalid.forEach(function (i) { delete docs[i] })
-        insert(release, docs)
+        insert(release, filterNoop(docs))
       } else if (invalid.length > 0) {
         var err = new Error('operation not allowed')
         err.type = 'NOT_ALLOWED'
         release(cb, err)
-      } else insert(release, docs)
+      } else insert(release, filterNoop(docs))
     })
   })
   function insert (release, docs) {
@@ -362,4 +362,40 @@ Auth.prototype.getGroupHistory = function (group, cb) {
     release()
   })
   return d
+}
+
+function has (obj, key) {
+  return Object.prototype.hasOwnProperty.call(obj, key)
+}
+
+function filterNoop (pre) {
+  // pass to remove no-ops
+  var docs = []
+  var removed = {}, added = {}
+  for (var i = 0; i < pre.length; i++) {
+    var doc = pre[i]
+    if (!doc) continue
+    if (doc.id === '__proto__' || doc.group === '__proto__') continue
+    if (doc.type === 'remove') {
+      if (!removed[doc.group]) removed[doc.group] = {}
+      removed[doc.group][doc.id] = Math.max(removed[doc.group][doc.id] || 0, i)
+    } else if (doc.type === 'add') {
+      if (!added[doc.group]) added[doc.group] = {}
+      added[doc.group][doc.id] = Math.max(added[doc.group][doc.id] || 0, i)
+    }
+  }
+  for (var i = 0; i < pre.length; i++) {
+    var doc = pre[i]
+    if (!doc) continue
+    if (doc.type === 'add' && removed[doc.group]
+    && has(removed[doc.group], doc.id) && removed[doc.group][doc.id] > i) {
+      continue // skip docs added before a remove
+    }
+    if (doc.type === 'remove' && added[doc.group]
+    && has(added[doc.group], doc.id) && added[doc.group][doc.id] > i) {
+      continue // skip docs removed before an add
+    }
+    docs.push(doc)
+  }
+  return docs
 }
