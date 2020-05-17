@@ -4,6 +4,7 @@ var mutexify = require('mutexify')
 var through = require('through2')
 var pump = require('pump')
 var once = require('once')
+var { EventEmitter } = require('events')
 
 var SEP = '!'
 var GROUP = 'g!'
@@ -26,6 +27,7 @@ function Auth (db) {
   this.db = db
   this._lock = mutexify()
 }
+Auth.prototype = Object.create(EventEmitter.prototype)
 
 Auth.prototype._batchAllowed = function (batch, cb) {
   var self = this
@@ -33,7 +35,10 @@ Auth.prototype._batchAllowed = function (batch, cb) {
   var pending = 1
   var invalid = {}
   batch.forEach(function (doc, i) {
-    if (doc.by === null) return
+    if (doc.by === null) {
+      pending++
+      return onByRole(null, null)
+    }
     if (typeof doc.by !== 'string') return (invalid[i] = true)
     if (typeof doc.id !== 'string') return (invalid[i] = true)
     if (typeof doc.group !== 'string') return (invalid[i] = true)
@@ -42,21 +47,24 @@ Auth.prototype._batchAllowed = function (batch, cb) {
     if (doc.group.indexOf(SEP) >= 0) return (invalid[i] = true)
     if (doc.type === 'add' || doc.type === 'remove') {
       pending++
-      self._getRole({ batch, i }, doc.group, doc.by, function (err, byRole) {
-        // check if initiator of op is a mod
+      self._getRole({ batch, i }, doc.group, doc.by, onByRole)
+    }
+
+    function onByRole (err, byRole) {
+      // check if initiator of op is a mod
+      if (err) return cb(err)
+      if (doc.by !== null && byRole !== 'admin' && byRole !== 'mod') {
+        invalid[i] = true
+        if (--pending === 0) done()
+        return
+      }
+      self._getRole({ batch, i }, doc.group, doc.id, function (err, role) {
         if (err) return cb(err)
-        if (byRole !== 'admin' && byRole !== 'mod') {
+        if (doc.role !== null && byRole === 'mod'
+        && (role === 'mod' || role === 'admin')) {
           invalid[i] = true
-          if (--pending === 0) done()
-          return
         }
-        self._getRole({ batch, i }, doc.group, doc.id, function (err, role) {
-          if (err) return cb(err)
-          if (byRole === 'mod' && (role === 'mod' || role === 'admin')) {
-            invalid[i] = true
-          }
-          if (--pending === 0) done()
-        })
+        if (--pending === 0) done()
       })
     }
   })
@@ -139,13 +147,18 @@ Auth.prototype.batch = function (docs, opts, cb) {
     opts = {}
   }
   var self = this
+  var skipped = null
   cb = once(cb)
   self._lock(function (release) {
     self._batchAllowed(docs, function (err, invalid) {
       if (err) {
         release(cb, err)
       } else if (opts.skip && invalid.length > 0) {
-        invalid.forEach(function (i) { delete docs[i] })
+        skipped = []
+        invalid.forEach(function (i) {
+          skipped.push(docs[i])
+          delete docs[i]
+        })
         insert(release, filterNoop(docs))
       } else if (invalid.length > 0) {
         var err = new Error('operation not allowed')
@@ -206,6 +219,14 @@ Auth.prototype.batch = function (docs, opts, cb) {
   }
   function done (release, batch) {
     self.db.batch(batch, dbOpts, function (err) {
+      if (skipped) {
+        skipped.forEach(function (skip) {
+          self.emit('skip', skip)
+        })
+      }
+      docs.forEach(function (doc) {
+        self.emit('update', doc)
+      })
       release(cb, err)
     })
   }
@@ -274,7 +295,6 @@ Auth.prototype.isMember = function (r, cb) {
     else cb(null, true)
   })
 }
-
 
 Auth.prototype.getMembership = function (id, cb) {
   var self = this
@@ -369,7 +389,7 @@ function has (obj, key) {
 }
 
 function filterNoop (pre) {
-  // pass to remove no-ops
+  // remove no-ops but add an index property with the original integer index
   var docs = []
   var removed = {}, added = {}
   for (var i = 0; i < pre.length; i++) {

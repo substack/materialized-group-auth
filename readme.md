@@ -162,6 +162,16 @@ object stream `rstream` where each row is of the form:
 * `row.id` - id of the user
 * `row.key` - key of the document to look up from the historical log
 
+## auth.on('update', function (update) {})
+
+This event is emitted for each object passed to `batch()` that was successfully
+written. Batch objects that are determined to be no-ops will not be emitted.
+
+## auth.on('skip', function (skip) {})
+
+When `opts.skip` is true, this event emits each object passed to `batch()` that
+was skipped over.
+
 # license
 
 BSD
