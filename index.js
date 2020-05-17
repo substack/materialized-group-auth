@@ -37,7 +37,7 @@ Auth.prototype._batchAllowed = function (batch, cb) {
   batch.forEach(function (doc, i) {
     if (doc.by === null) {
       pending++
-      return onByRole(null, null)
+      return onByFlags(null, null)
     }
     if (typeof doc.by !== 'string') return (invalid[i] = true)
     if (typeof doc.id !== 'string') return (invalid[i] = true)
@@ -47,21 +47,24 @@ Auth.prototype._batchAllowed = function (batch, cb) {
     if (doc.group.indexOf(SEP) >= 0) return (invalid[i] = true)
     if (doc.type === 'add' || doc.type === 'remove') {
       pending++
-      self._getRole({ batch, i }, doc.group, doc.by, onByRole)
+      self._getFlags({ batch, i }, doc.group, doc.by, onByFlags)
     }
 
-    function onByRole (err, byRole) {
+    function onByFlags (err, byFlags) {
       // check if initiator of op is a mod
       if (err) return cb(err)
-      if (doc.by !== null && byRole !== 'admin' && byRole !== 'mod') {
+      if (!byFlags) byFlags = []
+      if (doc.by !== null && !byFlags.includes('admin')
+      && !byFlags.includes('mod')) {
         invalid[i] = true
         if (--pending === 0) done()
         return
       }
-      self._getRole({ batch, i }, doc.group, doc.id, function (err, role) {
+      self._getFlags({ batch, i }, doc.group, doc.id, function (err, flags) {
         if (err) return cb(err)
-        if (doc.role !== null && byRole === 'mod'
-        && (role === 'mod' || role === 'admin')) {
+        if (!flags) flags = []
+        if (doc.by !== null && !byFlags.includes('admin')
+        && (flags.includes('mod') || flags.includes('admin'))) {
           invalid[i] = true
         }
         if (--pending === 0) done()
@@ -72,9 +75,9 @@ Auth.prototype._batchAllowed = function (batch, cb) {
   function done () { cb(null, Object.keys(invalid)) }
 }
 
-Auth.prototype._getRole = function (b, group, id, cb) {
+Auth.prototype._getFlags = function (b, group, id, cb) {
   cb = once(cb)
-  var role = null
+  var flags = {}
   var pending = 1
   if (group !== '@') {
     pending++
@@ -104,40 +107,44 @@ Auth.prototype._getRole = function (b, group, id, cb) {
 
   function onget (err, res) {
     if (err && !err.notFound) return cb(err)
-    else if (res && res.role === 'admin') role = 'admin'
-    else if (res && res.role === 'mod' && role !== 'admin') role = 'mod'
-    else if (res && res.role && role === null) role = res.role
-    if (--pending === 0) cb(null, role)
+    var rflags = res && res.flags || []
+    for (var i = 0; i < rflags.length; i++) {
+      flags[rflags[i]] = true
+    }
+    if (--pending === 0) cb(null, Object.keys(flags).sort())
   }
   function onroot (err, res) {
     if (err && !err.notFound) return cb(err)
-    if (res) role = 'admin'
-    if (--pending === 0) cb(null, role)
+    var rflags = res && res.flags || []
+    for (var i = 0; i < rflags.length; i++) {
+      flags[rflags[i]] = true
+    }
+    if (--pending === 0) cb(null, Object.keys(flags).sort())
   }
 }
 
 var emptyB = { batch: [], i: 0 }
-Auth.prototype.getRole = function (r, cb) {
+Auth.prototype.getFlags = function (r, cb) {
   if (r.group.indexOf(SEP) >= 0) {
     return process.nextTick(cb, new Error('invalid group name'))
   }
   if (r.id.indexOf(SEP) >= 0) {
     return process.nextTick(cb, new Error('invalid id'))
   }
-  this._getRole(emptyB, r.group, r.id, cb)
+  this._getFlags(emptyB, r.group, r.id, cb)
 }
 
 Auth.prototype._canMod = function (b, group, id, cb) {
-  this._getRole(b, group, id, function (err, role) {
+  this._getFlags(b, group, id, function (err, flags) {
     if (err) cb(err)
-    else cb(null, role === 'admin' || role === 'mod')
+    else cb(null, flags && (flags.includes('admin') || flags.includes('mod')))
   })
 }
 
 Auth.prototype._canAdmin = function (b, group, id, cb) {
-  this._getRole(b, group, id, function (err, role) {
+  this._getFlags(b, group, id, function (err, flags) {
     if (err) cb(err)
-    else cb(null, role === 'admin')
+    else cb(null, flags && flags.includes('admin'))
   })
 }
 
@@ -189,7 +196,7 @@ Auth.prototype.batch = function (docs, opts, cb) {
         self.db.get(gmkey, dbOpts, function (err, m) {
           if (!m || Boolean(m.mod) !== Boolean(doc.mod)) {
             var value = {}
-            if (doc.role) value.role = doc.role
+            if (doc.flags) value.flags = doc.flags
             if (doc.key !== undefined) value.key = doc.key
             // duplicate data to avoid setting a mutex around responses
             batch.push({ type: 'put', key: gmkey, value: value })

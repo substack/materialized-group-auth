@@ -11,14 +11,14 @@ test('disallowed single batch 0', function (t) {
       by: null,
       group: '@',
       id: 'user0',
-      role: 'admin'
+      flags: ['admin']
     },
     {
       type: 'add',
       by: 'user0',
       group: 'cool',
       id: 'user1',
-      role: 'mod'
+      flags: ['mod']
     },
     {
       type: 'add',
@@ -47,14 +47,14 @@ test('disallowed single batch 1', function (t) {
       by: null,
       group: '@',
       id: 'user0',
-      role: 'admin'
+      flags: ['admin']
     },
     {
       type: 'add',
       by: 'user0',
       group: 'cool',
       id: 'user1',
-      role: 'mod'
+      flags: ['mod']
     },
     {
       type: 'add',

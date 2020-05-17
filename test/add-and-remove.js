@@ -11,14 +11,14 @@ test('add and remove', function (t) {
       by: null,
       group: '@',
       id: 'user0',
-      role: 'admin'
+      flags: ['admin']
     },
     {
       type: 'add',
       by: 'user0',
       group: '@',
       id: 'user1',
-      role: 'ban'
+      flags: ['ban']
     },
   ]
   var remove = [
@@ -27,7 +27,7 @@ test('add and remove', function (t) {
       by: 'user0',
       group: '@',
       id: 'user1',
-      role: 'ban'
+      flags: ['ban']
     },
   ]
   auth.batch(add, function (err) {
@@ -35,15 +35,15 @@ test('add and remove', function (t) {
     auth.getMembers('@', function (err, members) {
       t.error(err)
       t.deepEqual(members.sort(byId), [
-        { id: 'user0', role: 'admin' },
-        { id: 'user1', role: 'ban' },
+        { id: 'user0', flags: ['admin'] },
+        { id: 'user1', flags: ['ban'] },
       ])
       auth.batch(remove, function (err) {
         t.error(err)
         auth.getMembers('@', function (err, members) {
           t.error(err)
           t.deepEqual(members.sort(byId), [
-            { id: 'user0', role: 'admin' },
+            { id: 'user0', flags: ['admin'] },
           ])
         })
       })
@@ -60,7 +60,7 @@ test('single-batch add and remove', function (t) {
       by: null,
       group: '@',
       id: 'user0',
-      role: 'admin'
+      flags: ['admin']
     }
   ]
   var add1 = [
@@ -69,7 +69,7 @@ test('single-batch add and remove', function (t) {
       by: 'user0',
       group: '@',
       id: 'user1',
-      role: 'ban'
+      flags: ['ban']
     }
   ]
   var remove = [
@@ -78,7 +78,7 @@ test('single-batch add and remove', function (t) {
       by: 'user0',
       group: '@',
       id: 'user1',
-      role: 'ban'
+      flags: ['ban']
     }
   ]
   auth.batch(add0, function (err) {
@@ -88,8 +88,8 @@ test('single-batch add and remove', function (t) {
       auth.getMembers('@', function (err, members) {
         t.error(err)
         t.deepEqual(members.sort(byId), [
-          { id: 'user0', role: 'admin' },
-          { id: 'user1', role: 'ban' },
+          { id: 'user0', flags: ['admin'] },
+          { id: 'user1', flags: ['ban'] },
         ])
         auth.batch(remove, function (err) {
           t.error(err)
@@ -102,7 +102,7 @@ test('single-batch add and remove', function (t) {
     auth.getMembers('@', function (err, members) {
       t.error(err)
       t.deepEqual(members.sort(byId), [
-        { id: 'user0', role: 'admin' },
+        { id: 'user0', flags: ['admin'] },
       ])
     })
   }
@@ -117,21 +117,21 @@ test('one batch add and remove', function (t) {
       by: null,
       group: '@',
       id: 'user0',
-      role: 'admin'
+      flags: ['admin']
     },
     {
       type: 'add',
       by: 'user0',
       group: '@',
       id: 'user1',
-      role: 'ban'
+      flags: ['ban']
     },
     {
       type: 'remove',
       by: 'user0',
       group: '@',
       id: 'user1',
-      role: 'ban'
+      flags: ['ban']
     },
   ]
   auth.batch(batch, function (err) {
@@ -139,7 +139,7 @@ test('one batch add and remove', function (t) {
     auth.getMembers('@', function (err, members) {
       t.error(err)
       t.deepEqual(members.sort(byId), [
-        { id: 'user0', role: 'admin' },
+        { id: 'user0', flags: ['admin'] },
       ])
     })
   })

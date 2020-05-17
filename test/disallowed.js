@@ -11,14 +11,14 @@ test('disallowed', function (t) {
       by: null,
       group: '@',
       id: 'user0',
-      role: 'admin'
+      flags: ['admin']
     },
     {
       type: 'add',
       by: 'user0',
       group: 'cool',
       id: 'user1',
-      role: 'mod'
+      flags: ['mod']
     },
     {
       type: 'add',
@@ -49,7 +49,7 @@ test('disallowed', function (t) {
       by: 'user2',
       group: 'cool',
       id: 'user3',
-      role: 'custom'
+      flags: ['custom']
     }
   ]
   var fail3 = [
@@ -58,7 +58,7 @@ test('disallowed', function (t) {
       by: 'user1',
       group: 'cool',
       id: 'user0',
-      role: 'ban'
+      flags: ['ban']
     }
   ]
   auth.batch(pre, function (err) {

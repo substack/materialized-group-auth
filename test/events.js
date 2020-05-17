@@ -12,7 +12,7 @@ test('events', function (t) {
       by: null,
       group: '@',
       id: 'user0',
-      role: 'admin'
+      flags: ['admin']
     },
     {
       key: 1001,
@@ -20,7 +20,7 @@ test('events', function (t) {
       by: 'user0',
       group: 'cool',
       id: 'user1',
-      role: 'mod'
+      flags: ['mod']
     },
     {
       key: 1002,
@@ -35,7 +35,7 @@ test('events', function (t) {
       by: 'user1',
       group: 'cool',
       id: 'user2',
-      role: 'hmm'
+      flags: ['hmm']
     },
     {
       key: 1004,
@@ -43,7 +43,7 @@ test('events', function (t) {
       by: 'user1',
       group: 'cool',
       id: 'user2',
-      role: 'whatever'
+      flags: ['whatever']
     },
     {
       key: 1005,
@@ -51,7 +51,7 @@ test('events', function (t) {
       by: 'user2',
       group: 'cool',
       id: 'user2',
-      role: 'admin'
+      flags: ['admin']
     },
   ]
   var expectedUpdates = [
@@ -61,7 +61,7 @@ test('events', function (t) {
       by: null,
       group: '@',
       id: 'user0',
-      role: 'admin'
+      flags: ['admin']
     },
     {
       key: 1001,
@@ -69,7 +69,7 @@ test('events', function (t) {
       by: 'user0',
       group: 'cool',
       id: 'user1',
-      role: 'mod'
+      flags: ['mod']
     },
     {
       key: 1002,
@@ -84,7 +84,7 @@ test('events', function (t) {
       by: 'user1',
       group: 'cool',
       id: 'user2',
-      role: 'hmm'
+      flags: ['hmm']
     },
     {
       key: 1004,
@@ -92,7 +92,7 @@ test('events', function (t) {
       by: 'user1',
       group: 'cool',
       id: 'user2',
-      role: 'whatever'
+      flags: ['whatever']
     },
   ]
   var expectedSkips = [
@@ -102,7 +102,7 @@ test('events', function (t) {
       by: 'user2',
       group: 'cool',
       id: 'user2',
-      role: 'admin'
+      flags: ['admin']
     },
   ]
   auth.on('update', function (update) {

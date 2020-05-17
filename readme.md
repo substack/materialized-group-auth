@@ -22,7 +22,7 @@ if (argv._[0] === 'write') {
     type: argv.type,
     key: argv.key,
     by: argv.by || null,
-    role: argv.role,
+    flags: argv.flags ? String(argv.flags).split(',') : [],
     group: argv.group,
     id: argv.id
   }
@@ -49,19 +49,19 @@ if (argv._[0] === 'write') {
 
 ```
 $ node auth.js write --type=add --key=1000 \
-  --group=@ --id=user0 --role=admin
+  --group=@ --id=user0 --flags=admin
 $ node auth.js write --type=add --key=1001 \
-  --group=cool --id=user1 --role=mod --by=user0
+  --group=cool --id=user1 --flags=mod --by=user0
 $ node auth.js write --type=add --key=1002 \
   --group=cool --id=user2 --by=user1
 $ node auth.js groups
 { id: '@' }
 { id: 'cool' }
 $ node auth.js members cool
-{ id: 'user1', role: 'mod', key: 1001 }
-{ id: 'user2', key: 1002 }
+{ id: 'user1', flags: [ 'mod' ], key: 1001 }
+{ id: 'user2', flags: [], key: 1002 }
 $ node auth.js members @
-{ id: 'user0', role: 'admin', key: 1000 }
+{ id: 'user0', flags: [ 'admin' ], key: 1000 }
 ```
 
 # api
@@ -93,7 +93,7 @@ Each `doc` in the `docs` batch should be one of these types:
 * group - group string name
 * id - user id string to add
 * by - user added by this user id string
-* role - when specified, add the user as this role
+* flags - an array of string roles to set for the user
 
 ### remove
 
@@ -105,8 +105,8 @@ Each `doc` in the `docs` batch should be one of these types:
 
 If `by` is `null`, the operation will always succeed.
 
-* Users who have `role='mod'` can add and remove users without roles set.
-* Users who have `role='admin'` can add and remove mods and users without roles.
+* Users who have a flag `'mod'` can add and remove users who are not mod/admin
+* Users who have a flag `'admin'` can add and remove everyone
 
 The group `@` is special: members of this group are allowed to administer any
 other group. Inside the `@` group, mod/admin policies apply for adminsitration.
@@ -116,9 +116,9 @@ other group. Inside the `@` group, mod/admin policies apply for adminsitration.
 Determine whether a user `id` is a member of `group` as `cb(err, isMember)` for
 a boolean `isMember`.
 
-## auth.getRole({ group, id }, cb)
+## auth.getFlags({ group, id }, cb)
 
-Get the role as a string in `cb(err, role)` for an `id` in a `group`.
+Get the array of string flags as `cb(err, flags)` for an `id` in a `group`.
 
 ## var rstream = auth.getGroups(cb)
 
@@ -133,7 +133,7 @@ Return a list of all the members in a `group` as `cb(err, members)` or a
 readable object stream `rstream` where each row is of the form:
 
 * `row.id` - id string of the group user
-* `row.role` - user role if set
+* `row.flags` - flag strings for the given user
 * `row.key` - key to refer to an original document
 
 ## var rstream = auth.getMembership(id, cb)
@@ -143,7 +143,7 @@ Return a list of all the groups that the user `id` is a member of as
 form:
 
 * `row.id` - string name of the group
-* `row.role` - role of the user in the group, if any
+* `row.flags` - flag strings for the given user
 * `row.key` - key to refer to an original document
 
 ## var rstream = auth.getMemberHistory(id, cb)

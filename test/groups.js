@@ -12,7 +12,7 @@ test('groups', function (t) {
       by: null,
       group: '@',
       id: 'user0',
-      role: 'admin'
+      flags: ['admin']
     },
     {
       key: 1001,
@@ -20,7 +20,7 @@ test('groups', function (t) {
       by: 'user0',
       group: 'cool',
       id: 'user1',
-      role: 'mod'
+      flags: ['mod']
     },
     {
       key: 1002,
@@ -39,17 +39,21 @@ test('groups', function (t) {
     auth.getMembers('cool', function (err, members) {
       t.ifError(err)
       t.deepEqual(members.sort(byId), [
-        { id: 'user1', role: 'mod', key: 1001 },
+        { id: 'user1', flags: ['mod'], key: 1001 },
         { id: 'user2', key: 1002 }
       ])
     })
     auth.getMembership('user0', function (err, groups) {
       t.ifError(err)
-      t.deepEqual(groups.sort(byId), [ { id: '@', role: 'admin', key: 1000 } ])
+      t.deepEqual(groups.sort(byId), [
+        { id: '@', flags: ['admin'], key: 1000 }
+      ])
     })
     auth.getMembership('user1', function (err, groups) {
       t.ifError(err)
-      t.deepEqual(groups.sort(byId), [ { id: 'cool', role: 'mod', key: 1001 } ])
+      t.deepEqual(groups.sort(byId), [
+        { id: 'cool', flags: ['mod'], key: 1001 }
+      ])
     })
     auth.getMembership('user2', function (err, groups) {
       t.ifError(err)
@@ -83,21 +87,21 @@ test('groups', function (t) {
       t.ifError(err)
       t.notOk(x, 'user3 is not a member of group cool')
     })
-    auth.getRole({ id: 'user0', group: '@' }, function (err, x) {
+    auth.getFlags({ id: 'user0', group: '@' }, function (err, flags) {
       t.ifError(err)
-      t.equal(x, 'admin')
+      t.deepEqual(flags, ['admin'])
     })
-    auth.getRole({ id: 'user1', group: 'cool' }, function (err, x) {
+    auth.getFlags({ id: 'user1', group: 'cool' }, function (err, flags) {
       t.ifError(err)
-      t.equal(x, 'mod')
+      t.deepEqual(flags, ['mod'])
     })
-    auth.getRole({ id: 'user2', group: 'cool' }, function (err, x) {
+    auth.getFlags({ id: 'user2', group: 'cool' }, function (err, flags) {
       t.ifError(err)
-      t.equal(x, null)
+      t.deepEqual(flags, [])
     })
-    auth.getRole({ id: 'user3', group: 'cool' }, function (err, x) {
+    auth.getFlags({ id: 'user3', group: 'cool' }, function (err, flags) {
       t.ifError(err)
-      t.equal(x, null)
+      t.deepEqual(flags, [])
     })
     auth.getGroupHistory('cool', function (err, docs) {
       t.ifError(err)
@@ -146,31 +150,34 @@ test('regression: opts.skip does not affect operation correctness', function (t)
       type: 'add',
       id: 'b9be45ef45a827cd4b1b2a414a46cfa5783ca38044d7360c7d2913db6c3ea5b9',
       group: '@',
-      role: 'admin'
+      flags: ['admin']
     },
     {
       type: 'add',
       by: 'c0f73ca06138ecddcee96efae5a9a799cc1d133d9c00c47bfc87f85cb4e8defd',
       id: 'e8db822eb0f5ba06cacb0e28e6158a95363492fb32cca79105f2549b8a19a508',
       group: '@',
-      role: 'ban/key'
+      flags: ['ban/key']
     },
     {
       type: 'add',
       by: 'b9be45ef45a827cd4b1b2a414a46cfa5783ca38044d7360c7d2913db6c3ea5b9',
       id: 'foobar',
       group: '@',
-      role: 'ban/key'
+      flags: ['ban/key']
     }
   ]
   auth.batch(docs, {skip:true}, function (err) {
     t.error(err)
-    auth.getRole({group:'@', id:'e8db822eb0f5ba06cacb0e28e6158a95363492fb32cca79105f2549b8a19a508'}, function (err, role) {
+    auth.getFlags({
+      group: '@',
+      id: 'e8db822eb0f5ba06cacb0e28e6158a95363492fb32cca79105f2549b8a19a508'
+    }, function (err, flags) {
       t.error(err)
-      t.notOk(role)
-      auth.getRole({group:'@', id:'foobar'}, function (err, role) {
+      t.deepEqual(flags, [])
+      auth.getFlags({group:'@', id:'foobar'}, function (err, flags) {
         t.error(err)
-        t.same(role, 'ban/key')
+        t.deepEqual(flags, ['ban/key'])
       })
     })
   })

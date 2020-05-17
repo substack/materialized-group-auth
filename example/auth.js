@@ -10,7 +10,7 @@ if (argv._[0] === 'write') {
     type: argv.type,
     key: argv.key,
     by: argv.by || null,
-    role: argv.role,
+    flags: argv.flags ? String(argv.flags).split(',') : [],
     group: argv.group,
     id: argv.id
   }

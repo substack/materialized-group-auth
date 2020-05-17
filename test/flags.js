@@ -2,7 +2,7 @@ var test = require('tape')
 var memdb = require('memdb')
 var mauth = require('../')
 
-test('custom group', function (t) {
+test('flags', function (t) {
   t.plan(31)
   var auth = mauth(memdb())
   var docs = [
@@ -12,7 +12,7 @@ test('custom group', function (t) {
       by: null,
       group: '@',
       id: 'user0',
-      role: 'admin'
+      flags: [ 'admin' ]
     },
     {
       key: 1001,
@@ -20,7 +20,7 @@ test('custom group', function (t) {
       by: 'user0',
       group: 'cool',
       id: 'user1',
-      role: 'mod'
+      flags: [ 'mod' ]
     },
     {
       key: 1002,
@@ -28,7 +28,7 @@ test('custom group', function (t) {
       by: 'user1',
       group: 'cool',
       id: 'bot0',
-      role: 'bot'
+      flags: [ 'bot' ],
     }
   ]
   auth.batch(docs, function (err) {
@@ -41,28 +41,34 @@ test('custom group', function (t) {
       t.ifError(err)
       t.ok(x, 'bot0 is a member of group cool')
     })
-    auth.getRole({ id: 'bot0', group: 'cool' }, function (err, role) {
+    auth.getFlags({ id: 'bot0', group: 'cool' }, function (err, flags) {
       t.ifError(err)
-      t.equal(role, 'bot', 'bot0 has the role bot in group cool')
+      t.deepEqual(flags, ['bot'], 'bot0 has a bot flag in group cool')
     })
     auth.getMembers('cool', function (err, members) {
       t.ifError(err)
       t.deepEqual(sortBy('id',members), [
-        { id: 'bot0', role: 'bot', key: 1002 },
-        { id: 'user1', role: 'mod', key: 1001 }
+        { id: 'bot0', flags: ['bot'], key: 1002 },
+        { id: 'user1', flags: ['mod'], key: 1001 }
       ])
     })
     auth.getMembership('user0', function (err, groups) {
       t.ifError(err)
-      t.deepEqual(sortBy('id',groups), [ { id: '@', role: 'admin', key: 1000 } ])
+      t.deepEqual(sortBy('id',groups), [
+        { id: '@', flags: ['admin'], key: 1000 }
+      ])
     })
     auth.getMembership('user1', function (err, groups) {
       t.ifError(err)
-      t.deepEqual(sortBy('id',groups), [ { id: 'cool', role: 'mod', key: 1001 } ])
+      t.deepEqual(sortBy('id',groups), [
+        { id: 'cool', flags: ['mod'], key: 1001 }
+      ])
     })
     auth.getMembership('bot0', function (err, groups) {
       t.ifError(err)
-      t.deepEqual(sortBy('id',groups), [ { id: 'cool', role: 'bot', key: 1002 } ])
+      t.deepEqual(sortBy('id',groups), [
+        { id: 'cool', flags: ['bot'], key: 1002 }
+      ])
     })
     auth.getGroupHistory('cool', function (err, docs) {
       t.ifError(err)
