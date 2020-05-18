@@ -1,6 +1,6 @@
 {
   "name": "materialized-group-auth",
-  "version": "2.0.1",
+  "version": "2.1.0",
   "description": "materialize a group authentication database from ordered logs",
   "dependencies": {
     "collect-stream": "^1.2.1",
