@@ -1,9 +1,10 @@
 var test = require('tape')
 var memdb = require('memdb')
+var collect = require('collect-stream')
 var mauth = require('../')
 
 test('groups', function (t) {
-  t.plan(49)
+  t.plan(53)
   var auth = mauth(memdb())
   var docs = [
     {
@@ -137,6 +138,22 @@ test('groups', function (t) {
     auth.getMemberHistory('user2', function (err, history) {
       t.ifError(err)
       t.deepEqual(history, [ { group: 'cool', key: '1002' } ])
+    })
+    collect(auth.list(), function (err, list) {
+      t.error(err)
+      t.deepEqual(list, [
+        { key: 1000, flags: [ 'admin' ], id: 'user0', group: '@' },
+        { key: 1001, flags: [ 'mod' ], id: 'user1', group: 'cool' },
+        { key: 1002, id: 'user2', group: 'cool' }
+      ])
+    })
+    auth.list(function (err, list) {
+      t.error(err)
+      t.deepEqual(list, [
+        { key: 1000, flags: [ 'admin' ], id: 'user0', group: '@' },
+        { key: 1001, flags: [ 'mod' ], id: 'user1', group: 'cool' },
+        { key: 1002, id: 'user2', group: 'cool' }
+      ])
     })
   })
 })

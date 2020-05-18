@@ -162,6 +162,15 @@ object stream `rstream` where each row is of the form:
 * `row.id` - id of the user
 * `row.key` - key of the document to look up from the historical log
 
+## var rstream = auth.list(opts={}, cb)
+
+Return a list of all the records in the database of the form:
+
+* `row.id` - string name of the user
+* `row.flags` - flag strings for the given user
+* `row.key` - key to refer to an original document
+* `row.group` - string name of the group
+
 ## auth.on('update', function (update) {})
 
 This event is emitted for each object passed to `batch()` that was successfully

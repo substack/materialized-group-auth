@@ -389,6 +389,31 @@ Auth.prototype.getGroupHistory = function (group, cb) {
   return d
 }
 
+Auth.prototype.list = function (opts, cb) {
+  if (typeof opts === 'function') {
+   cb = opts
+    opts = {}
+  }
+  var r = this.db.createReadStream({
+    gt: MEMBER_GROUP,
+    lt: MEMBER_GROUP + '\uffff',
+    keyEncoding: 'string',
+    valueEncoding: 'json'
+  })
+  var out = through.obj(function (row, enc, next) {
+    var sp = row.key.split('!')
+    next(null, Object.assign({}, row.value, {
+      id: sp[1],
+      group: sp[2],
+    }))
+  })
+  pump(r, out)
+  var d = duplexify.obj()
+  d.setReadable(out)
+  if (cb) collect(d, cb)
+  return d
+}
+
 function has (obj, key) {
   return Object.prototype.hasOwnProperty.call(obj, key)
 }
