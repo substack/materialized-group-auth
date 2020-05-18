@@ -171,7 +171,9 @@ Auth.prototype.batch = function (docs, opts, cb) {
         var err = new Error('operation not allowed')
         err.type = 'NOT_ALLOWED'
         release(cb, err)
-      } else insert(release, filterNoop(docs))
+      } else {
+        insert(release, filterNoop(docs))
+      }
     })
   })
   function insert (release, docs) {
@@ -193,21 +195,17 @@ Auth.prototype.batch = function (docs, opts, cb) {
           + '!' + doc.id + '!' + doc.key
         var amhkey = ADMIN_MEMBER_HISTORY + doc.by + '!' + doc.id
           + '!' + doc.group + '!' + doc.key
-        self.db.get(gmkey, dbOpts, function (err, m) {
-          if (!m || Boolean(m.mod) !== Boolean(doc.mod)) {
-            var value = {}
-            if (doc.flags) value.flags = doc.flags
-            if (doc.key !== undefined) value.key = doc.key
-            // duplicate data to avoid setting a mutex around responses
-            batch.push({ type: 'put', key: gmkey, value: value })
-            batch.push({ type: 'put', key: mgkey, value: value })
-            batch.push({ type: 'put', key: ghkey, value: 0 })
-            batch.push({ type: 'put', key: mhkey, value: 0 })
-            batch.push({ type: 'put', key: aghkey, value: 0 })
-            batch.push({ type: 'put', key: amhkey, value: 0 })
-          }
-          if (--pending === 0) done(release, batch)
-        })
+        var value = {}
+        if (doc.flags) value.flags = doc.flags
+        if (doc.key !== undefined) value.key = doc.key
+        // duplicate data to avoid setting a mutex around responses
+        batch.push({ type: 'put', key: gmkey, value: value })
+        batch.push({ type: 'put', key: mgkey, value: value })
+        batch.push({ type: 'put', key: ghkey, value: 0 })
+        batch.push({ type: 'put', key: mhkey, value: 0 })
+        batch.push({ type: 'put', key: aghkey, value: 0 })
+        batch.push({ type: 'put', key: amhkey, value: 0 })
+        if (--pending === 0) done(release, batch)
       } else if (doc.type === 'remove') {
         batch.push({
           type: 'del',
